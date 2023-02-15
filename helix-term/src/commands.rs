@@ -2551,16 +2551,29 @@ fn jumplist_picker(cx: &mut Context) {
         }
     };
 
-    let picker = FilePicker::new(
-        cx.editor
-            .tree
-            .views()
-            .flat_map(|(view, _)| {
-                view.jumps
-                    .iter()
-                    .map(|(doc_id, selection)| new_meta(view, *doc_id, selection.clone()))
-            })
-            .collect(),
+    let (view, doc) = current_ref!(cx.editor);
+    let curr_selection = doc.selection(view.id);
+
+    let mut picker_offset = None;
+    let mut jumps: Vec<_> = view
+        .jumps
+        .iter()
+        .enumerate()
+        .map(|(idx, (doc_id, selection))| {
+            if *doc_id == doc.id() && selection == curr_selection {
+                picker_offset = Some(idx);
+            }
+            new_meta(view, *doc_id, selection.clone())
+        })
+        .collect();
+
+    if picker_offset.is_none() {
+        let current_meta = new_meta(view, doc.id(), curr_selection.clone());
+        jumps.insert(0, current_meta);
+    }
+
+    let mut picker = FilePicker::new(
+        jumps,
         (),
         |cx, meta, action| {
             cx.editor.switch(meta.id, action);
@@ -2575,6 +2588,8 @@ fn jumplist_picker(cx: &mut Context) {
             Some((meta.path.clone()?.into(), Some((line, line))))
         },
     );
+    picker.move_by(picker_offset.unwrap_or_default(), Direction::Forward);
+
     cx.push_layer(Box::new(overlayed(picker)));
 }
 

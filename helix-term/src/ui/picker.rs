@@ -229,6 +229,11 @@ impl<T: Item> FilePicker<T> {
 
         EventResult::Consumed(None)
     }
+
+    /// Move the cursor by a number of lines, either down (`Forward`) or up (`Backward`)
+    pub fn move_by(&mut self, amount: usize, direction: Direction) {
+        self.picker.move_by(amount, direction);
+    }
 }
 
 impl<T: Item + 'static> Component for FilePicker<T> {
