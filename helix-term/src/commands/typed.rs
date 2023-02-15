@@ -1353,6 +1353,36 @@ fn lsp_restart(
     Ok(())
 }
 
+fn lsp_stop(
+    cx: &mut compositor::Context,
+    _args: &[Cow<str>],
+    event: PromptEvent,
+) -> anyhow::Result<()> {
+    if event != PromptEvent::Validate {
+        return Ok(());
+    }
+
+    let (_view, doc) = current!(cx.editor);
+
+    let ls_id = doc
+        .language_server().map(|ls| ls.id())
+        .context("LSP not running for the current document")?;
+
+    let config = doc
+        .language_config()
+        .context("LSP not defined for the current document")?;
+    cx.editor.language_servers.stop(&config);
+
+    cx.editor.documents_mut()
+        .filter(|doc| doc.language_server().map_or(false, |ls| ls.id() == ls_id))
+        .for_each(|doc| {
+            doc.set_language_server(None);
+            log::warn!("XXX STOPPING for {:?}", doc.path());
+        });  
+
+    Ok(())
+}
+
 fn tree_sitter_scopes(
     cx: &mut compositor::Context,
     _args: &[Cow<str>],
@@ -2339,6 +2369,13 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
             aliases: &[],
             doc: "Restarts the Language Server that is in use by the current doc",
             fun: lsp_restart,
+            completer: None,
+        },
+        TypableCommand {
+            name: "lsp-stop",
+            aliases: &[],
+            doc: "Stops the Language Server that is in use by the current doc",
+            fun: lsp_stop,
             completer: None,
         },
         TypableCommand {
